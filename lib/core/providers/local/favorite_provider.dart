@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:example/core/models/models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class Favorite {
+class FavoriteProvider {
   static const String _key_sf = 'FAVORITE_SF_LIST';
 
   Future<bool> updateFavoriteToSF(List<People> peoples) async {
@@ -18,9 +18,13 @@ class Favorite {
     String stringValue = prefs.getString(_key_sf);
 
     try {
-      dynamic json = jsonDecode(stringValue);
+      List<dynamic> json = jsonDecode(stringValue);
 
-      List<People> peoples = List<People>.from(json);
+      List<People> peoples = json
+          .map(
+            (item) => People.fromJson(item['user']),
+          )
+          .toList();
 
       return Future.value(peoples);
     } catch (e) {

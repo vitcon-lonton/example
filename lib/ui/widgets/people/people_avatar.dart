@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class PeopleAvatar extends StatelessWidget {
@@ -19,9 +20,15 @@ class PeopleAvatar extends StatelessWidget {
         child: Container(
             width: 150.0,
             height: 150.0,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                image: DecorationImage(
-                    fit: BoxFit.fill, image: NetworkImage(uri)))));
+            decoration: BoxDecoration(shape: BoxShape.circle),
+            child: CachedNetworkImage(
+                imageUrl: uri,
+                errorWidget: (context, url, error) => Icon(Icons.error),
+                placeholder: (context, url) => CircularProgressIndicator(),
+                imageBuilder: (context, imageProvider) => Container(
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        image: DecorationImage(
+                            image: imageProvider, fit: BoxFit.fill))))));
   }
 }

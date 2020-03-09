@@ -15,6 +15,12 @@ class PeopleName extends Equatable {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'last': last,
+        'first': first,
+      };
+
   @override
   List<Object> get props => [title, last, first];
 }

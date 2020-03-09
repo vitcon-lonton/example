@@ -28,9 +28,7 @@ class PeopleProvider {
 
       return Future.value(people);
     } catch (e) {
-      print(e);
       return Future.error(e);
-      // return Future.error(Exception(""));
     }
   }
 }

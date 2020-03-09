@@ -19,6 +19,7 @@ class _MyAppState extends State<MyApp> {
     return BlocProvider(
         create: (_) => _appBloc = AppBloc(),
         child: MaterialApp(
+            debugShowCheckedModeBanner: false,
             initialRoute: '/',
             title: 'Flutter Demo',
             theme: ThemeData(primarySwatch: Colors.blue),

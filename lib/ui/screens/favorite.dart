@@ -1,9 +1,12 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:example/core/bloc/app_bloc.dart';
 import 'package:example/core/models/models.dart';
 import 'package:example/ui/shared/shared.dart';
 import 'package:example/ui/widgets/people/people.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 class FavoriteScreen extends StatefulWidget {
   @override
@@ -12,13 +15,22 @@ class FavoriteScreen extends StatefulWidget {
 
 class _FavoriteScreenState extends State<FavoriteScreen> with BaseScreenMixin {
   List<People> _favorite = [];
+  StreamSubscription _subscription;
+
+  void _onStateChange(AppState state) {
+    if (_favorite != state.favorite) {
+      setState(() {
+        _favorite = state.favorite.toList();
+      });
+    }
+  }
 
   @override
   void afterFirstLayout(BuildContext context) {
     super.afterFirstLayout(context);
 
-    // Listen state change
-    BlocProvider.of<AppBloc>(context).listen(_onStateChange);
+    // Subcribe bloc state
+    _subscription = BlocProvider.of<AppBloc>(context).listen(_onStateChange);
   }
 
   @override
@@ -43,11 +55,11 @@ class _FavoriteScreenState extends State<FavoriteScreen> with BaseScreenMixin {
                 .toList()));
   }
 
-  void _onStateChange(AppState state) {
-    if (_favorite != state.favorite) {
-      setState(() {
-        _favorite = state.favorite.toList();
-      });
-    }
+  @override
+  void dispose() {
+    super.dispose();
+
+    // Cancel subcription
+    _subscription?.cancel();
   }
 }

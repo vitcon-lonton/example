@@ -10,8 +10,13 @@ part 'app_event.dart';
 part 'app_state.dart';
 
 class AppBloc extends Bloc<AppEvent, AppState> {
-  PeopleRepository _repository = new PeopleRepository();
+  PeopleRepository _peopleRepository = new PeopleRepository();
+  FavoriteRepository _favoriteRepository = new FavoriteRepository();
+  StreamController<String> _messageController = new StreamController();
+
   List<People> dataStock = [];
+
+  Stream<String> get message => _messageController.stream;
 
   @override
   AppState get initialState => AppState(peoples: [], favorite: []);
@@ -19,20 +24,21 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   @override
   void onError(Object error, StackTrace stacktrace) {
     super.onError(error, stacktrace);
-    print(stacktrace.toString());
+
+    _messageController.sink.add(error);
   }
 
   @override
-  Stream<AppState> mapEventToState(
-    AppEvent event,
-  ) async* {
+  Stream<AppState> mapEventToState(AppEvent event) async* {
     if (event is UpdateState) yield* _mapUpdateStateEvent(event);
     if (event is GetPeoples) _mapGetPeoplesEvent(event);
-    if (event is TakePeoplesFromStock) _mapTakePeoplesFromStock(event);
-    if (event is AddPeopleToStock) _mapAddPeopleToStock(event);
-    if (event is RemoveFirstPeople) _mapRemoveFirstPeople(event);
-    if (event is AddPeoplesToFavorite) _mapAddPeoplesToFavorite(event);
-    if (event is SaveFavoriteToLocal) _mapSaveFavoriteToLocal(event);
+    if (event is InitData) _mapInitDataEvent(event);
+    if (event is TakePeoplesFromStock) _mapTakePeoplesFromStockEvent(event);
+    if (event is AddPeopleToStock) _mapAddPeopleToStockEvent(event);
+    if (event is RemoveFirstPeople) _mapRemoveFirstPeopleEvent(event);
+    if (event is AddPeoplesToFavorite) _mapAddPeoplesToFavoriteEvent(event);
+    if (event is SaveFavoriteToLocal) _mapSaveFavoriteToLocalEvent(event);
+    if (event is GetFavoriteFromLocal) _mapGetFavoriteFromLocalEvent(event);
   }
 
   Stream<AppState> _mapUpdateStateEvent(UpdateState event) async* {
@@ -42,20 +48,42 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   }
 
   void _mapGetPeoplesEvent(GetPeoples event) {
-    _repository
-        .getRandomPeoples(amount: event.amount)
+    _peopleRepository
+        .getRandomPeoples(quantity: event.quantity)
         .then(event.onSuccess)
-        .catchError(event.onError ?? (e) {});
+        .catchError(
+      (e) {
+        if (event.onError != null) {
+          event.onError(e);
+        } else {
+          _addMessage("Get people from API failed");
+        }
+      },
+    );
+  }
+
+  void _mapInitDataEvent(InitData event) {
+    GetPeoples eventGetPeoples = GetPeoples(
+      quantity: event.numberItemsInStock,
+      onSuccess: (peoples) {
+        add(AddPeopleToStock(peoples: peoples));
+        add(TakePeoplesFromStock(quantity: event.numberItemsDisplay));
+      },
+    );
+
+    add(GetFavoriteFromLocal());
+
+    add(eventGetPeoples);
   }
 
   /// Take peoples data from dataStock(remove) and insert to people list [AppState]
-  void _mapTakePeoplesFromStock(TakePeoplesFromStock event) {
+  void _mapTakePeoplesFromStockEvent(TakePeoplesFromStock event) {
     // Get data from state
     AppState newState = state.copyWith();
 
     // Find and remove peoples from dataStock and insert to list people
-    List<People> peoples = dataStock.getRange(0, event.amount - 1).toList();
-    dataStock.removeRange(0, event.amount - 1);
+    List<People> peoples = dataStock.getRange(0, event.quantity - 1).toList();
+    dataStock.removeRange(0, event.quantity - 1);
     newState.peoples.addAll(peoples);
 
     // Create new state and notify update state
@@ -64,21 +92,20 @@ class AppBloc extends Bloc<AppEvent, AppState> {
   }
 
   /// Insert data to dataStock
-  void _mapAddPeopleToStock(AddPeopleToStock event) {
+  void _mapAddPeopleToStockEvent(AddPeopleToStock event) {
     dataStock.addAll(event.peoples);
   }
 
   /// We will fetch 1 people from api to data stock, and
   /// remove first people in people list [AppState]
-  void _mapRemoveFirstPeople(RemoveFirstPeople event) {
+  void _mapRemoveFirstPeopleEvent(RemoveFirstPeople event) {
     AppState newState = state.copyWith();
 
     GetPeoples eventGetPeoples = GetPeoples(
-      amount: 1,
+      quantity: 1,
       onSuccess: (peoples) {
         add(AddPeopleToStock(peoples: peoples));
       },
-      onError: (e) {},
     );
 
     add(eventGetPeoples);
@@ -93,23 +120,56 @@ class AppBloc extends Bloc<AppEvent, AppState> {
 
     UpdateState eventUpdateState = UpdateState(state: newState);
 
-    add(AddPeoplesToFavorite(peoples: [people]));
+    // If option insert to favorite is true, then insert to favorite list
+    if (event.insertToFavorite) add(AddPeoplesToFavorite(peoples: [people]));
+
     // Update new state
     add(eventUpdateState);
   }
 
   /// Add peoples to favorite list [AppState]
-  void _mapAddPeoplesToFavorite(AddPeoplesToFavorite event) {
+  void _mapAddPeoplesToFavoriteEvent(AddPeoplesToFavorite event) {
     AppState newState = state.copyWith();
 
     newState.favorite.addAll(event.peoples);
+
+    add(SaveFavoriteToLocal());
 
     // Update new state
     add(UpdateState(state: newState));
   }
 
   /// Add peoples to favorite list [AppState]
-  void _mapSaveFavoriteToLocal(SaveFavoriteToLocal event) {
+  void _mapSaveFavoriteToLocalEvent(SaveFavoriteToLocal event) {
     AppState newState = state.copyWith();
+
+    _favoriteRepository
+        .updateFavoriteToSF(newState.favorite)
+        .then((_) => _addMessage('Save favorite to local success'))
+        .catchError((e) => _addMessage('Cant save favorite to local'));
+  }
+
+  /// Add peoples to favorite list [AppState]
+  void _mapGetFavoriteFromLocalEvent(GetFavoriteFromLocal event) {
+    _favoriteRepository.getFavoriteFromSF().then(
+      (peoples) {
+        add(AddPeoplesToFavorite(peoples: peoples));
+        _addMessage('Get favorite from local success');
+      },
+    ).catchError(
+      (e) => _addMessage('Cant get people from local'),
+    );
+  }
+
+  void _addMessage(String message) {
+    print(message);
+    _messageController.sink.add(message);
+  }
+
+  @override
+  Future<void> close() async {
+    await _messageController.close();
+
+    return super.close();
   }
 }

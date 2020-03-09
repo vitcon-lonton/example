@@ -16,6 +16,8 @@ class PeopleCard extends StatefulWidget {
     this.phone,
     this.cell,
     this.name,
+    this.initActiveIndex = 0,
+    this.onActiveIndexChange,
   }) : super(key: key);
 
   /// Props
@@ -29,6 +31,8 @@ class PeopleCard extends StatefulWidget {
   final String phone;
   final String cell;
   final String name;
+  final int initActiveIndex;
+  final Function(int) onActiveIndexChange;
 
   /// Default data, icons action, style text
   ///
@@ -55,12 +59,21 @@ class PeopleCard extends StatefulWidget {
 class _PeopleCardState extends State<PeopleCard> {
   /// [Integer] from 0 to icons length - 1(widget.icons),
   /// Now in this use case, my icons length = 4
-  int activeIndex = 0;
+  int activeIndex;
   Function changeActiveAction(i) => () {
         setState(() {
+          if (widget.onActiveIndexChange != null) widget.onActiveIndexChange(i);
           activeIndex = i;
         });
       };
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Init active index
+    activeIndex = widget.initActiveIndex;
+  }
 
   @override
   Widget build(BuildContext context) {

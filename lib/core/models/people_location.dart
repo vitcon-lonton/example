@@ -17,6 +17,13 @@ class PeopleLocation extends Equatable {
     );
   }
 
+  Map<String, dynamic> toJson() => {
+        'street': street,
+        'city': city,
+        'state': state,
+        'zip': zip,
+      };
+
   @override
   List<Object> get props => [street, city, state, zip];
 }

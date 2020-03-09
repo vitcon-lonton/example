@@ -6,13 +6,8 @@ class AppState {
 
   AppState({this.peoples, this.favorite});
 
-  AppState copyWith({
-    List<People> dataStock,
-    List<People> peoples,
-    List<People> favorite,
-  }) =>
+  AppState copyWith({List<People> peoples, List<People> favorite}) =>
       new AppState(
-        peoples: peoples ?? this.peoples,
-        favorite: favorite ?? this.favorite,
-      );
+          peoples: peoples ?? this.peoples,
+          favorite: favorite ?? this.favorite);
 }

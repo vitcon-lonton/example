@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -16,6 +18,58 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with BaseScreenMixin {
   List<People> _peoples = [];
+  int _numberItemFavorite = 0;
+  StreamSubscription _subscription;
+  StreamSubscription _messageSubscription;
+
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  void _onLeftSwipe() {
+    _addEventToAppBloc(RemoveFirstPeople());
+  }
+
+  void _onRightSwipe() {
+    _addEventToAppBloc(RemoveFirstPeople(insertToFavorite: true));
+  }
+
+  void _addEventToAppBloc(AppEvent event) {
+    BlocProvider.of<AppBloc>(context).add(event);
+  }
+
+  void _fetchData() {
+    _addEventToAppBloc(InitData(numberItemsDisplay: 3, numberItemsInStock: 6));
+  }
+
+  void _showMessage(String message) {
+    SnackBar snackBar = SnackBar(
+      duration: Duration(milliseconds: 800),
+      content: Text('$message'),
+      action: SnackBarAction(label: 'Close', onPressed: () {}),
+    );
+
+    _scaffoldKey.currentState.showSnackBar(snackBar);
+  }
+
+  void _onAppStateChange(AppState state) {
+    // Get props state to compare
+    List<People> newPeoples = state.peoples;
+    int newNumberItemFavorite = state.favorite.length;
+
+    // Condition to re-render
+    bool isRerender = false;
+
+    if (_peoples != newPeoples) {
+      _peoples = state.peoples.toList();
+      isRerender = true;
+    }
+
+    if (_numberItemFavorite != newNumberItemFavorite) {
+      _numberItemFavorite = newNumberItemFavorite;
+      isRerender = true;
+    }
+
+    if (isRerender) setState(() {});
+  }
 
   @override
   void afterFirstLayout(BuildContext context) {
@@ -24,72 +78,43 @@ class _HomeScreenState extends State<HomeScreen> with BaseScreenMixin {
     // Fetch data
     _fetchData();
 
-    // Listen state change
-    BlocProvider.of<AppBloc>(context).listen(_onAppStateChange);
+    // Subcribe bloc state
+    _subscription = BlocProvider.of<AppBloc>(context).listen(_onAppStateChange);
+
+    // Subcribe message stream and binding to show message
+    _messageSubscription =
+        BlocProvider.of<AppBloc>(context).message.listen(_showMessage);
   }
 
   @override
   Widget build(BuildContext context) {
     // Button favorite, navigate to favorite screen
-    Widget iconFavorite = IconButton(
-      icon: Icon(Icons.favorite),
-      onPressed: () => Navigator.of(context).pushNamed('/favorite'),
+    Widget iconFavorite = Container(
+      margin: const EdgeInsets.only(right: 10.0),
+      child: IconButtonBadge(
+        badgeNumber: _numberItemFavorite,
+        icon: Icon(Icons.favorite),
+        onPress: () => Navigator.of(context).pushNamed('/favorite'),
+      ),
     );
 
-    // Building list people card
-    List<Widget> children = _peoples
-        .map((people) => PeopleCard(
-            address: people.address,
-            avatar: people.picture,
-            username: people.username,
-            password: people.password,
-            phone: people.phone,
-            cell: people.cell,
-            name: people.fullName,
-            width: 300,
-            height: 350))
-        .toList();
-
     return Scaffold(
+        key: _scaffoldKey,
         appBar: AppBar(title: Text('Home'), actions: [iconFavorite]),
         body: Center(
-            child: Carousel(
+            child: PeopleCarousel(
                 swipeThreshold: 200 / 2,
                 onLeftSwipe: _onLeftSwipe,
                 onRightSwipe: _onRightSwipe,
-                children: children)));
+                peoples: _peoples)));
   }
 
-  void _onLeftSwipe() {
-    _addEventToAppBloc(RemoveFirstPeople());
-  }
+  @override
+  void dispose() {
+    super.dispose();
 
-  void _onRightSwipe() {
-    _addEventToAppBloc(RemoveFirstPeople());
-  }
-
-  void _addEventToAppBloc(AppEvent event) {
-    BlocProvider.of<AppBloc>(context).add(event);
-  }
-
-  void _fetchData() {
-    GetPeoples event = GetPeoples(
-      amount: 6,
-      onSuccess: (peoples) {
-        _addEventToAppBloc(AddPeopleToStock(peoples: peoples));
-        _addEventToAppBloc(TakePeoplesFromStock(amount: 3));
-      },
-      onError: (e) {},
-    );
-
-    _addEventToAppBloc(event);
-  }
-
-  void _onAppStateChange(AppState state) {
-    if (_peoples != state.peoples) {
-      setState(() {
-        _peoples = state.peoples.toList();
-      });
-    }
+    // Cancel all subcription
+    _messageSubscription?.cancel();
+    _subscription?.cancel();
   }
 }

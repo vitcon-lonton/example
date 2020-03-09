@@ -6,9 +6,9 @@ class PeopleRepository {
 
   Future<People> getRandomPeople() => _peopleProvider.getRandomPeople();
 
-  Future<List<People>> getRandomPeoples({int amount = 1}) {
+  Future<List<People>> getRandomPeoples({int quantity = 1}) {
     List<Future<People>> request =
-        List(amount).map((_) => getRandomPeople()).toList();
+        List(quantity).map((_) => getRandomPeople()).toList();
 
     return Future.wait(request);
   }

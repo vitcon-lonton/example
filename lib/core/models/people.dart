@@ -36,13 +36,15 @@ class People extends Equatable {
         cell = json['cell'];
 
   Map<String, dynamic> toJson() => {
-        'location': location,
-        'name': name,
-        'username': username,
-        'password': password,
-        'picture': picture,
-        'phone': phone,
-        'cell': cell,
+        'user': {
+          'location': location,
+          'name': name,
+          'username': username,
+          'password': password,
+          'picture': picture,
+          'phone': phone,
+          'cell': cell,
+        }
       };
 
   @override
